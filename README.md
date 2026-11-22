@@ -39,6 +39,8 @@ Things SQLittle can do:
 - indexes with expression (either in columns or as a `WHERE`) are (partially) supported
 - Scan() to most Go datatypes, including `time.Time`
 - works on Linux, Mac OS, and Windows
+- merge several shards (databases holding one keyspace) into one ordered,
+  streaming read; see "Merging shards" below
 - has an experimental database/sql driver, see below
 ```
 
@@ -64,6 +66,37 @@ Things SQLittle can not do:
 SQLittle has a read-lock on the file during the whole execution of the
 select-like functions. It's safe to update the database using SQLite while the
 file is opened in SQLittle.
+
+## Merging shards
+A keyspace can be split over several SQLite files ("shards"), for example by
+key range. A `Merger` reads those files as one ordered stream, without loading
+all rows in memory: it keeps one pending row per shard, plus the btree walk
+state.
+
+```
+shards := []sqlittle.Shard{
+	{Name: "2025", Path: "kv-2025.sqlite"},
+	{Name: "2026", Path: "kv-2026.sqlite", Priority: 1},
+}
+err := sqlittle.Merge(shards, sqlittle.MergeConfig{
+	Table:    "kv",
+	Conflict: sqlittle.ConflictPriority,
+}, func(r sqlittle.MergedRow) bool {
+	fmt.Printf("%s %v\n", r.Shard, r.Row.ScanStrings())
+	return false
+})
+```
+
+The merge key is the primary key of the table (or an explicit index), so the
+shards have to be in key order. `NewMerger` verifies the column layout and key
+definition of every shard against the first one, and the merge verifies the
+key order of every shard while reading. If the same key is in more than one
+shard (a "boundary" conflict) the merge fails by default, or, with
+`ConflictPriority`, the row of the shard with the highest `Shard.Priority` is
+used. Every returned row carries the name of the shard it came from.
+
+Use `VerifyShards` to check the layout and key order of a set of shards
+without consuming the rows.
 
 ## Status
 The current level of abstraction is likely the final one (that is: deal

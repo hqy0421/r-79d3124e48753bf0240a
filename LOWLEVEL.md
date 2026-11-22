@@ -30,6 +30,22 @@ Printing the columns:
     }
 
 
+If you need to interleave several scans (for example to merge sorted data
+from multiple files), use the pull based cursors. They give you the same rows
+as Scan(), one at a time:
+
+    cursor, _ := table.Cursor()
+    for {
+        rowid, rec, ok, err := cursor.Next()
+        if err != nil || !ok {
+            break
+        }
+        // ...
+    }
+
+`Index.Cursor()` works the same for indexes and `WITHOUT ROWID` tables.
+
+
 ## locks
 
 If you somehow know that no-one will change the .sqlite file you don't have to

@@ -71,4 +71,10 @@ from `/select.go` and `/indexed_select.go`.
 
 `/row.go` has Scan() to deal with data conversions.
 
+`/merge.go` reads a keyspace split over several database files as one ordered
+stream. It uses the pull based cursors from `/db/cursor.go` (the resumable
+equivalent of the callback based `Table.Scan()`/`Index.Scan()`), keeps one
+pending row per shard, and verifies the column layout, key definition, and key
+order of the shards as it goes.
+
 `/sqlite.go` knows how columns are stored in indexes.

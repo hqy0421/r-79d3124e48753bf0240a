@@ -91,6 +91,26 @@ func Search(key Key, r Record) bool {
 	return true
 }
 
+// CompareValues compares two record values with SQLite's type sort order:
+// nil < {int64|float64} < string < []byte.
+//
+// The optional collate names a collation function from CollateFuncs; an empty
+// string means the default ("binary") collation. An unknown collation is
+// treated as "binary".
+//
+// The return value is -1, 0, or 1.
+func CompareValues(a, b interface{}, collate string) int {
+	c := DefaultCollate
+	if collate != "" {
+		c = collate
+	}
+	fn, ok := CollateFuncs[c]
+	if !ok {
+		fn = CollateFuncs[DefaultCollate]
+	}
+	return compare(a, b, fn)
+}
+
 // compare record values, with ordering according to SQLite's type sort order:
 //    nil < {int64|float64} < string < []byte
 //
